@@ -2,8 +2,14 @@ import { todos } from "../data/todo.js";
 import { throwHttpError } from "../utils/http-error.js";
 import { pool } from "../db/index.js";
 
-export const getTodosService = async () => {
-  const result = await pool.query("SELECT * FROM todos ORDER BY id DESC");
+export const getTodosService = async ({ limit, offset }) => {
+  const query = `
+    SELECT * FROM TODOS
+    ORDER BY created_at DESC
+    LIMIT $1 OFFSET $2
+  `;
+  const result = await pool.query(query, [limit, offset]);
+
   return result.rows;
 };
 

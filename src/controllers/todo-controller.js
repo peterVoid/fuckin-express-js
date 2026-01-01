@@ -8,7 +8,12 @@ import {
 import { asyncHandler } from "../utils/async-handler.js";
 
 export const getTodos = asyncHandler(async (req, res) => {
-  const result = await getTodosService();
+  const page = Number(req.query?.page ?? "1");
+  const limit = Math.min(50, Number(req.query?.limit ?? "10"));
+
+  const offset = (page - 1) * limit;
+
+  const result = await getTodosService({ limit, offset });
 
   return res.status(200).json({ data: result });
 });
