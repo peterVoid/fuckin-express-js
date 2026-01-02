@@ -9,13 +9,31 @@ import { asyncHandler } from "../utils/async-handler.js";
 
 export const getTodos = asyncHandler(async (req, res) => {
   const page = Number(req.query?.page ?? "1");
-  const limit = Math.min(50, Number(req.query?.limit ?? "10"));
-
+  const limit = Math.min(10, Number(req.query?.limit ?? "10"));
   const offset = (page - 1) * limit;
 
-  const result = await getTodosService({ limit, offset });
+  const completed =
+    req.query.completed !== undefined
+      ? req.query.completed === "true"
+      : undefined;
+  const search = req.query.search?.trim();
 
-  return res.status(200).json({ data: result });
+  const { data, total } = await getTodosService({
+    limit,
+    offset,
+    completed,
+    search,
+  });
+
+  return res.status(200).json({
+    data,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
 });
 
 export const getSingleTodo = asyncHandler(async (req, res) => {

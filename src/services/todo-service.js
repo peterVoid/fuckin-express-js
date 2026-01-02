@@ -1,17 +1,47 @@
-import { todos } from "../data/todo.js";
-import { throwHttpError } from "../utils/http-error.js";
 import { pool } from "../db/index.js";
+import { throwHttpError } from "../utils/http-error.js";
 
-export const getTodosService = async ({ limit, offset }) => {
+export const getTodosService = async ({ limit, offset, completed, search }) => {
+  const values = [];
+  const where = [];
+
+  if (completed !== undefined) {
+    values.push(completed);
+    where.push(`completed = $${values.length}`);
+  }
+
+  if (search) {
+    values.push(`%${search}%`);
+    where.push(`title ilike $${values.length}`);
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+
+  const dataValues = [...values, limit, offset];
+
   const query = `
-    EXPLAIN ANALYZE
-    SELECT * FROM TODOS
-    ORDER BY created_at DESC
-    LIMIT $1 OFFSET $2
+    SELECT * FROM todos
+    ${whereClause}
+    ORDER BY id DESC
+    LIMIT $${dataValues.length - 1} OFFSET $${dataValues.length}
   `;
-  const result = await pool.query(query, [limit, offset]);
 
-  return result.rows;
+  const countQuery = `
+    SELECT COUNT(*) FROM todos
+    ${whereClause}
+  `;
+
+  const [dataResult, countResult] = await Promise.all([
+    pool.query(query, dataValues),
+    pool.query(countQuery, dataValues.slice(0, dataValues.length - 2)),
+  ]);
+
+  const total = Number(countResult.rows[0].count);
+
+  return {
+    data: dataResult.rows,
+    total,
+  };
 };
 
 export const getTodoByIdService = async (id) => {

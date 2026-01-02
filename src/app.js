@@ -1,12 +1,13 @@
-import express from "express";
-import todoRoutes from "./routes/todo-routes.js";
-import authRoutes from "./routes/auth-routes.js";
-import todoMiddleware from "./middlewares/logger.js";
-import { errorMiddleware } from "./middlewares/error.js";
-import "dotenv/config";
-import { pool } from "./db/index.js";
 import cookieParser from "cookie-parser";
+import "dotenv/config";
+import express from "express";
 import helmet from "helmet";
+import { pool } from "./db/index.js";
+import { errorMiddleware } from "./middlewares/error.js";
+import todoMiddleware from "./middlewares/logger.js";
+import authRoutes from "./routes/auth-routes.js";
+import todoRoutes from "./routes/todo-routes.js";
+import userRoutes from "./routes/user-routes.js";
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use("/todos", todoMiddleware);
 
 app.use("/todos", todoRoutes);
 app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
 
 app.use(errorMiddleware);
 
