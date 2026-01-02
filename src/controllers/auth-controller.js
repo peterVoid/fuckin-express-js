@@ -32,7 +32,15 @@ export const refresh = asyncHandler(async (req, res) => {
     throwHttpError(401, "Refresh token missing");
   }
 
-  const accessToken = await refreshTokenService(refreshToken);
+  const { accessToken, newRefreshToken } = await refreshTokenService(
+    refreshToken
+  );
+
+  res.cookie("refresh_token", newRefreshToken, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: false,
+  });
 
   res.json({ accessToken });
 });

@@ -73,33 +73,62 @@ export const loginService = async ({ email, password }) => {
 };
 
 export const refreshTokenService = async (refreshToken) => {
-  const result = await pool.query(
-    `
-    SELECT * FROM refresh_token
-    WHERE token = $1
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const findTokenQuery = `
+      SELECT user_id
+      FROM refresh_token
+      WHERE token = $1
+    `;
+
+    const result = await client.query(findTokenQuery, [refreshToken]);
+
+    if (result.rowCount === 0) {
+      throwHttpError(401, "Invalid refresh token");
+    }
+
+    const userId = result.rows[0].user_id;
+
+    await client.query(
+      `
+      DELETE FROM refresh_token 
+      WHERE token = $1
+      `,
+      refreshToken
+    );
+
+    const newRefreshToken = crypto.randomUUID();
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await client.query(
+      `
+      INSERT INTO refresh_token (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
     `,
-    [refreshToken]
-  );
+      [userId, newRefreshToken, new Date(expiresAt)]
+    );
 
-  if (result.rowCount === 0) {
-    throwHttpError(401, "Invalid refresh token");
+    const accessToken = jwt.sign({ sub: userId }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
+    });
+
+    await client.query("COMMIT");
+
+    return {
+      accessToken,
+      newRefreshToken,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-
-  const session = result.rows[0];
-
-  if (new Date(session.expires_at) < new Date()) {
-    throwHttpError(401, "Refresh token is expired");
-  }
-
-  const payload = {
-    sub: session.user_id,
-  };
-
-  const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: "10m",
-  });
-
-  return newAccessToken;
 };
 
 export const logoutService = async (refreshToken) => {
